@@ -13,7 +13,7 @@ use tokio::time::{self, Instant};
 
 
 // ---------------- MODIFY HERE ----------------------
-const ROBOT_NAME: &str = "MyRobot2";
+const ROBOT_NAME: &str = "MyRobot";
 // ---------------------------------------------------
 
 #[tokio::main]
