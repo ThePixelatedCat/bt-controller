@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let peripheral = 'outer: loop {
         if let Ok(peripherals) = adapter.peripherals().await {
             for p in peripherals {
-                if p.properties().await.unwrap().unwrap().local_name.iter().any(|name| name.contains(ROBOT_NAME)) {
+                if p.properties().await.unwrap().unwrap().local_name.iter().any(|name| name.eq(ROBOT_NAME)) {
                     // println!("xx: {:?}", p);
                     if let Ok(Some(props)) = p.properties().await {
                         if props.services.contains(&service_uuid) {
