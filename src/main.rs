@@ -1,16 +1,13 @@
 use std::error::Error;
-use std::io::{self, Read, Write};
 use std::time::Duration;
 use uuid::Uuid;
 
 use btleplug::api::{
-    Central, CentralEvent, Characteristic, Manager as _, Peripheral as _, ScanFilter, WriteType
+    Central, Manager as _, Peripheral as _, WriteType
 };
 use btleplug::platform::Manager;
-use futures::stream::StreamExt;
-use tokio::time::{self, Instant};
-
-
+use tokio::time::Instant;
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
 // ---------------- MODIFY HERE ----------------------
 const ROBOT_NAME: &str = "MyRobot";
@@ -21,9 +18,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // UUIDs must match the peripheral code!
     let service_uuid = Uuid::parse_str("0000097d-0000-1000-8000-00805f9b34fb")?;
     let command_char_uuid = Uuid::parse_str("5cc11628-0528-4edb-af0a-5db2a02d6827")?;
-
-    // The filter name 
-    // let ROBOT_NAME = "MyRobot2";
 
     // Get BLE adapter
     let manager = Manager::new().await?;
@@ -41,7 +35,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if let Ok(peripherals) = adapter.peripherals().await {
             for p in peripherals {
                 if p.properties().await.unwrap().unwrap().local_name.iter().any(|name| name.eq(ROBOT_NAME)) {
-                    // println!("xx: {:?}", p);
                     if let Ok(Some(props)) = p.properties().await {
                         if props.services.contains(&service_uuid) {
                             println!("Found robot: {:?}", props.local_name);
@@ -51,7 +44,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-        // time::sleep(Duration::from_secs(1)).await;
     };
 
     // Connect
@@ -74,9 +66,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
    run(&peripheral, &command_char).await
 }
 
-use btleplug::api::{Peripheral as _};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-
 async fn run(
     peripheral: &impl btleplug::api::Peripheral,
     command_char: &btleplug::api::Characteristic,
@@ -89,8 +78,8 @@ async fn run(
 
     loop {
         // Check for key events
-        if event::poll(Duration::from_millis(50))? {
-            if let Event::Key(key_event) = event::read()? {
+        if event::poll(Duration::from_millis(50))? 
+            && let Event::Key(key_event) = event::read()? {
                 match key_event.kind {
                     KeyEventKind::Press => {
                         if let KeyCode::Char(c) = key_event.code {
@@ -115,15 +104,12 @@ async fn run(
                         // optional: ignore, since we handle auto-repeat ourselves
                     }
                 }
-            }
         }
 
-        // If a key is held, repeat every 200ms
-        if let Some(c) = active_key {
-            if last_sent.elapsed() >= Duration::from_millis(200) {
-                send_cmd(peripheral, command_char, c).await?;
-                last_sent = Instant::now();
-            }
+        /* Periodically send '+' (the KILL value in the robot-side code, so it seemed appropriate) when nothing else is pressed */
+        if last_sent.elapsed() >= Duration::from_millis(200) {
+            send_cmd(peripheral, command_char, active_key.unwrap_or('+')).await?;
+            last_sent = Instant::now();
         }
     }
 
@@ -139,6 +125,6 @@ async fn send_cmd(
     peripheral
         .write(command_char, &[byte], WriteType::WithoutResponse)
         .await?;
-    println!("Sent command: {}", c);
+    println!("Sent command: {c}");
     Ok(())
 }
